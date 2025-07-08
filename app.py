@@ -1,18 +1,16 @@
 import streamlit as st
 import plotly.graph_objects as go
 from datetime import datetime
-import time
 import gspread
 import json
 import os
 from PIL import Image
-import threading # <-- ADDED: To run Google Sheet update in the background
 
 # --- PAGE CONFIGURATION ---
 try:
     logo = Image.open("logo.png")
 except FileNotFoundError:
-    logo = "🧠"
+    logo = "🧠" 
 
 st.set_page_config(
     page_title="Carnelian - Personality Style Assessment",
@@ -24,33 +22,60 @@ st.set_page_config(
 # --- CUSTOM CSS ---
 st.markdown("""
 <style>
-    #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
-    header {visibility: hidden;}
-
-    .stApp { background-color: #FFFFFF; color: #2c3e50; }
-    .welcome-container, .results-container { padding: 2rem; margin: 2rem auto; border-radius: 15px; background-color: #f8f9fa; border: 1px solid #e9ecef; max-width: 800px; }
-    .question-container { margin: 2rem auto; max-width: 800px; }
+    #MainMenu, footer, header {visibility: hidden;}
+    body { background-color: #FFFFFF !important; color: #2c3e50 !important; }
+    .welcome-container, .results-container, .question-container { padding: 2rem; margin: 2rem auto; border-radius: 15px; background-color: #f8f9fa; border: 1px solid #e9ecef; max-width: 800px; }
     .main-header { font-size: 2.2rem !important; text-align: center; margin-bottom: 1rem; color: #1f77b4; font-weight: 700; }
-    .question-number { font-size: 1.3rem; font-weight: 600; color: #34495e; text-align: left; margin-bottom: 1rem; }
-    .question-title { font-weight: bold; margin-bottom: 2.5rem; color: #2c3e50; font-size: 1.5rem; text-align: left; line-height: 1.4; }
+    .question-number { font-size: 1.1rem; font-weight: 600; color: #1f77b4; padding-bottom: 0.5rem; border-bottom: 2px solid #e9ecef; margin-bottom: 1rem; }
+    .question-title { font-weight: bold; margin-bottom: 1rem; color: #2c3e50; font-size: 1.1rem; }
     .score-highlight { font-size: 1.5rem; font-weight: bold; color: #1f77b4; text-align: center; margin-bottom: 1rem; }
-    .stRadio > div { gap: 0.75rem; }
-    .stRadio label { display: flex; align-items: center; padding: 0.8rem; border-radius: 8px; border: 2px solid #e9ecef; background-color: #FFFFFF; transition: all 0.2s ease-in-out; cursor: pointer; }
-    .stRadio label:hover { border-color: #1f77b4; }
-    .stRadio label > div { flex-grow: 1; margin-left: 0.75rem; color: #2c3e50 !important; min-width: 0; }
-    .nav-buttons { display: flex; justify-content: space-between; align-items: center; margin-top: 3rem; padding-top: 1.5rem; border-top: 1px solid #e9ecef; }
+    .stRadio > div { gap: 0.5rem; }
+    .stRadio label { display: flex; align-items: center; padding: 0.5rem 0.75rem; border-radius: 8px; border: 1px solid #e9ecef; background-color: #FFFFFF; transition: all 0.2s ease-in-out; }
+    .stRadio label:hover { border-color: #1f77b4; background-color: #f0f8ff; }
+    .stRadio label > div { color: #2c3e50 !important; }
+    .keyword-banner { text-align: center; background-color: rgba(31, 119, 180, 0.1); padding: 0.75rem 1rem; border-radius: 8px; margin-bottom: 1.5rem; font-style: italic; }
+    
+    .results-column h5 {
+        color: #1f77b4;
+        font-weight: 600;
+        border-bottom: 2px solid #1f77b4;
+        padding-bottom: 0.5rem;
+        margin-bottom: 1rem;
+    }
+    .results-column ul {
+        list-style-type: none;
+        padding-left: 0;
+    }
+    .results-column li {
+        margin-bottom: 0.75rem;
+        line-height: 1.5;
+        padding-left: 2rem;
+        position: relative;
+    }
+    .results-column li::before {
+        position: absolute;
+        left: 0;
+        top: 0;
+    }
+    .results-column .behaviors li::before {
+        content: '✅';
+    }
+    .results-column .tips li::before {
+        content: '💡';
+    }
+
     @media (max-width: 768px) {
         .main-header { font-size: 1.8rem !important; }
-        .welcome-container, .results-container { padding: 1.5rem; }
-        .question-title { font-size: 1.2rem; }
-        .question-number { font-size: 1.1rem; }
+        .welcome-container, .results-container, .question-container { padding: 1.5rem; }
+        .question-title { font-size: 1rem; }
+        .results-column { margin-bottom: 1.5rem; }
     }
 </style>
 """, unsafe_allow_html=True)
 
 
 # --- DATA (Questions, Scoring, Descriptions) ---
+# (Data is unchanged)
 questions = [
     {
         'text': 'When talking to a customer…',
@@ -260,13 +285,22 @@ questions = clean_question_choices(questions)
 
 def calculate_scores(responses):
     scores = {'Driver': 0, 'Analytical': 0, 'Amiable': 0, 'Expressive': 0}
+    # --- THIS IS THE FIX ---
+    # Map the index directly to the correct letter
+    choice_map = ['a', 'b', 'c', 'd']
+    
     for i, response_index in enumerate(responses):
         if response_index is not None:
-            q_num = i + 1
-            choice = chr(97 + response_index)
-            style = scoring_map[q_num][choice]
-            scores[style] += 1
+            question_num = i + 1
+            # Use the index to get the correct letter ('a', 'b', 'c', or 'd')
+            choice_letter = choice_map[response_index]
+            
+            # Look up the style using the correct letter from the scoring map
+            if question_num in scoring_map and choice_letter in scoring_map[question_num]:
+                style = scoring_map[question_num][choice_letter]
+                scores[style] += 1
     return scores
+    # --- END OF FIX ---
 
 def create_results_donut_chart(scores):
     colors = {'Driver': '#FF6B6B', 'Analytical': '#4ECDC4', 'Amiable': '#45B7D1', 'Expressive': '#FFA07A'}
@@ -282,10 +316,10 @@ def create_results_donut_chart(scores):
     )])
     fig.update_layout(
         title={'text': 'Your Personality Style Profile', 'y':0.95, 'x':0.5, 'xanchor': 'center', 'yanchor': 'top', 'font': {'size': 24, 'color': '#1f77b4'}},
-        font=dict(size=14, color='#2c3e50'),
-        paper_bgcolor='rgba(0,0,0,0)',
+        font=dict(size=14, color='#2c3e50'), 
+        paper_bgcolor='rgba(0,0,0,0)', 
         showlegend=False,
-        height=450,
+        height=450, 
         margin=dict(l=20, r=20, t=80, b=20)
     )
     return fig
@@ -297,7 +331,7 @@ def update_google_sheet(data):
         gc = gspread.service_account_from_dict(creds_dict)
         spreadsheet = gc.open("Personality Assessment Results")
         worksheet = spreadsheet.worksheet("Sheet1")
-
+        
         row_to_insert = [
             data.get("timestamp"),
             data.get("name"),
@@ -308,119 +342,108 @@ def update_google_sheet(data):
             data.get("scores", {}).get("Amiable"),
             data.get("scores", {}).get("Expressive"),
         ] + data.get("responses", [None]*18)
-
+        
         worksheet.append_row(row_to_insert)
-        print("Successfully saved data to Google Sheet.") # For debugging
     except Exception as e:
-        # Log the error to the console for debugging, but don't interrupt the user
         print(f"Error updating Google Sheet: {e}")
-
-def update_input():
-    """Callback function to save text input to session state."""
-    st.session_state.user_name = st.session_state.name_input
-    st.session_state.user_company = st.session_state.company_input
 
 # --- UI DISPLAY FUNCTIONS ---
 def display_welcome():
     st.markdown('<div class="welcome-container">', unsafe_allow_html=True)
-
-    logo_col1, logo_col2, logo_col3 = st.columns([2.5, 0.5, 2.5])
-    with logo_col2:
+    
+    col1, col2, col3 = st.columns([2,0.5, 2])
+    with col2:
         try:
-            st.image("logo.png", width=120)
+            st.image("logo.png", width=150) 
         except FileNotFoundError:
             pass
-
+    
     st.markdown('<h1 class="main-header">Welcome to the Personality Style Assessment</h1>', unsafe_allow_html=True)
+    
+    # --- THIS IS THE FIX for saving name/company ---
+    # Use a callback to instantly save input to session_state
+    def update_inputs():
+        st.session_state.user_name = st.session_state.name_input
+        st.session_state.user_company = st.session_state.company_input
 
-    with st.container():
-        _ , input_col, _ = st.columns([1, 2, 1])
-        with input_col:
-            st.text_input(
-                "Please enter your name:",
-                key="name_input",
-                on_change=update_input
-            )
-            st.text_input(
-                "Please enter your company name:",
-                key="company_input",
-                on_change=update_input
-            )
-
-        st.markdown("""
-        <p style="text-align: center; font-size: 1.2rem; margin-top: 1.5rem;">
-            Discover your dominant behavioral style and learn how to effectively interact with others.
-        </p>
-        <p style="text-align: center; color: #34495e;">
-            This assessment consists of 18 questions. For each question, simply select the option that best describes you.
-            The next question will appear automatically.
-        </p>
-        """, unsafe_allow_html=True)
-
-        st.markdown("---")
-
-        _ , btn_col, _ = st.columns([1.5, 1, 1.5])
-        if btn_col.button(
-            "Start Assessment",
-            type="primary",
-            use_container_width=True,
-            disabled=(not st.session_state.get("user_name") or not st.session_state.get("user_company"))
-        ):
-            st.session_state.started = True
-            st.session_state.current_question = 0
-            st.rerun()
-
+    _ , input_col, _ = st.columns([1, 2, 1])
+    with input_col:
+        name = st.text_input(
+            "Please enter your name to begin:", 
+            key="name_input", 
+            on_change=update_inputs
+        )
+        company = st.text_input(
+            "Please enter your company name:", 
+            key="company_input", 
+            on_change=update_inputs
+        )
+    
+    st.markdown("""
+    <p style="text-align: center; font-size: 1.2rem; margin-top: 1rem;">
+        Discover your dominant behavioral style and learn how to effectively interact with others.
+    </p>
+    """, unsafe_allow_html=True)
+    st.markdown("---")
+    
+    _, btn_col, _ = st.columns([1.5, 1, 1.5])
+    
+    if btn_col.button(
+        "Start Assessment", 
+        type="primary", 
+        use_container_width=True, 
+        disabled=(not st.session_state.user_name or not st.session_state.user_company)
+    ):
+        # --- THIS IS THE FIX for resetting the form ---
+        # Reset previous responses and results flags for a clean start
+        st.session_state.responses = [None] * len(questions)
+        st.session_state.show_results = False
+        if 'data_saved' in st.session_state:
+            del st.session_state.data_saved
+        
+        st.session_state.started = True
+        st.rerun()
+    
     st.markdown('</div>', unsafe_allow_html=True)
 
-def display_single_question():
-    current_q = st.session_state.current_question
-    total_questions = len(questions)
-
+def display_all_questions():
     st.markdown('<div class="question-container">', unsafe_allow_html=True)
+    st.markdown('<h1 class="main-header">Personality Style Assessment</h1>', unsafe_allow_html=True)
+    st.markdown("<p style='text-align:center; margin-bottom: 2rem;'>Please answer all questions to the best of your ability.</p>", unsafe_allow_html=True)
 
-    st.markdown(f'<div class="question-number">Question {current_q + 1} of {total_questions}</div>', unsafe_allow_html=True)
-    st.markdown(f'<div class="question-title">{questions[current_q]["text"]}</div>', unsafe_allow_html=True)
+    with st.form(key="questions_form"):
+        for i, q in enumerate(questions):
+            st.markdown(f'<div class="question-number">Question {i + 1}</div>', unsafe_allow_html=True)
+            st.markdown(f'<p class="question-title">{q["text"]}</p>', unsafe_allow_html=True)
+            
+            # The default for a new session is None, which shows no selection.
+            st.radio(
+                "Select your answer:",
+                options=range(len(q['choices'])),
+                format_func=lambda x: q['choices'][x],
+                key=f"q_{i}",
+                index=st.session_state.responses[i],
+                label_visibility="collapsed"
+            )
+            st.markdown("---")
 
-    radio_key = f"q_{current_q}_radio"
-
-    selected = st.radio(
-        "Select your answer:",
-        options=range(len(questions[current_q]['choices'])),
-        format_func=lambda x: questions[current_q]['choices'][x],
-        key=radio_key,
-        index=st.session_state.responses[current_q],
-        label_visibility="collapsed"
-    )
-
-    if selected is not None and selected != st.session_state.responses[current_q]:
-        st.session_state.responses[current_q] = selected
-        if current_q < total_questions - 1:
-            time.sleep(0.25)
-            st.session_state.current_question += 1
-            st.rerun()
-        else:
-            st.session_state.show_results = True
-            st.rerun()
-
-    st.markdown('<div class="nav-buttons">', unsafe_allow_html=True)
-    col1, col2, col3 = st.columns([1, 2, 1])
-
-    with col1:
-        if current_q > 0:
-            if st.button("Back", use_container_width=True):
-                st.session_state.current_question -= 1
+        st.markdown("<br>", unsafe_allow_html=True)
+        
+        _, btn_col, _ = st.columns([1.5, 1, 1.5])
+        submitted = btn_col.form_submit_button("Submit & View Results", type="primary", use_container_width=True)
+        
+        if submitted:
+            # When the form is submitted, save all the current widget values to our persistent responses list
+            for i in range(len(questions)):
+                st.session_state.responses[i] = st.session_state[f"q_{i}"]
+            
+            # Check if all questions have been answered
+            if all(r is not None for r in st.session_state.responses):
+                st.session_state.show_results = True
                 st.rerun()
+            else:
+                st.error("Please answer all questions before submitting.")
 
-    with col2:
-        st.progress((current_q) / total_questions)
-
-    with col3:
-        if current_q < total_questions - 1 and st.session_state.responses[current_q] is not None:
-            if st.button("Next", use_container_width=True):
-                st.session_state.current_question += 1
-                st.rerun()
-
-    st.markdown('</div>', unsafe_allow_html=True)
     st.markdown('</div>', unsafe_allow_html=True)
 
 def display_results():
@@ -429,44 +452,21 @@ def display_results():
     max_score = max(scores.values()) if scores else 0
     dominant_styles = [s for s, score in scores.items() if score == max_score]
 
-    # This block runs the slow Google Sheet update in a background thread.
-    if 'data_saved' not in st.session_state:
-        st.session_state.data_saved = False
-
-    if not st.session_state.data_saved:
-        # --- MODIFICATION START ---
-        # Calculate percentages for saving to the sheet, as requested.
-        total_questions = len(questions)
-        if total_questions > 0:
-            # Format scores as percentage strings (e.g., "50.0%")
-            percentage_scores_for_sheet = {style: f"{(score / total_questions) * 100:.1f}%" for style, score in scores.items()}
-        else:
-            # Handle case with no questions to avoid division by zero
-            percentage_scores_for_sheet = {style: "0.0%" for style in scores.keys()}
-
-        # Prepare the data to be saved
+    if 'data_saved' not in st.session_state or not st.session_state.data_saved:
         letter_responses = [chr(65 + r) if r is not None else None for r in st.session_state.responses]
+        total_questions = len(questions)
+        percentage_scores = {style: f"{(score / total_questions) * 100:.1f}%" for style, score in scores.items()}
         data_to_save = {
             "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             "name": st.session_state.get("user_name", "N/A"),
             "company": st.session_state.get("user_company", "N/A"),
             "dominant_style": " & ".join(dominant_styles),
-            "scores": percentage_scores_for_sheet,  # <-- Use the calculated percentages here
+            "scores": percentage_scores,
             "responses": letter_responses
         }
-        # --- MODIFICATION END ---
-
-        # Run the Google Sheet update in a separate thread to avoid blocking the UI
-        try:
-            save_thread = threading.Thread(target=update_google_sheet, args=(data_to_save,))
-            save_thread.start()
-        except Exception as e:
-            print(f"Failed to start background save thread: {e}")
-
-        # Immediately mark data as "saved" to prevent this block from running again.
+        update_google_sheet(data_to_save)
         st.session_state.data_saved = True
 
-    # The rest of the page (like the chart) still uses the raw `scores` for correct rendering.
     st.markdown('<h2 style="text-align: center; color: #1f77b4;">Your Assessment Results</h2>', unsafe_allow_html=True)
     st.plotly_chart(create_results_donut_chart(scores), use_container_width=True)
     st.markdown("---")
@@ -475,68 +475,64 @@ def display_results():
         style = dominant_styles[0]
         info = style_descriptions[style]
         st.markdown(f'<div class="score-highlight">Your Dominant Style is {info["title"]}</div>', unsafe_allow_html=True)
-
+        
         with st.expander("Click here for a detailed breakdown of your style", expanded=True):
             st.markdown(f'<div class="keyword-banner"><strong>Keywords:</strong> {", ".join(info["keywords"])}</div>', unsafe_allow_html=True)
-
-            tab1, tab2 = st.tabs(["Key Behaviors", "Tips for Interaction"])
-            with tab1:
+            
+            col1, col2 = st.columns(2)
+            with col1:
+                st.markdown("<div class='results-column behaviors'><h5>Key Behaviors</h5><ul>", unsafe_allow_html=True)
                 for behavior in info['behaviors']:
-                    st.markdown(f"• {behavior}")
-            with tab2:
+                    st.markdown(f"<li>{behavior}</li>", unsafe_allow_html=True)
+                st.markdown("</ul></div>", unsafe_allow_html=True)
+            with col2:
+                st.markdown("<div class='results-column tips'><h5>Tips for Interaction</h5><ul>", unsafe_allow_html=True)
                 for tip in info['dealing_tips']:
-                    st.markdown(f"• {tip}")
+                    st.markdown(f"<li>{tip}</li>", unsafe_allow_html=True)
+                st.markdown("</ul></div>", unsafe_allow_html=True)
     else:
         st.markdown('<div class="score-highlight">You have a blend of styles!</div>', unsafe_allow_html=True)
         st.markdown(f"<p style='text-align:center;'>Your dominant styles are: {' & '.join(dominant_styles)}</p>", unsafe_allow_html=True)
-
+        
         tabs = st.tabs([style_descriptions[s]['title'] for s in dominant_styles])
         for i, style in enumerate(dominant_styles):
             with tabs[i]:
                 info = style_descriptions[style]
                 st.markdown(f'<div class="keyword-banner"><strong>Keywords:</strong> {", ".join(info["keywords"])}</div>', unsafe_allow_html=True)
-
+                
                 col1, col2 = st.columns(2)
                 with col1:
-                    st.markdown("##### Key Behaviors")
+                    st.markdown("<div class='results-column behaviors'><h5>Key Behaviors</h5><ul>", unsafe_allow_html=True)
                     for behavior in info['behaviors']:
-                        st.markdown(f"• {behavior}")
+                        st.markdown(f"<li>{behavior}</li>", unsafe_allow_html=True)
+                    st.markdown("</ul></div>", unsafe_allow_html=True)
                 with col2:
-                    st.markdown("##### Tips for Interaction")
+                    st.markdown("<div class='results-column tips'><h5>Tips for Interaction</h5><ul>", unsafe_allow_html=True)
                     for tip in info['dealing_tips']:
-                        st.markdown(f"• {tip}")
+                        st.markdown(f"<li>{tip}</li>", unsafe_allow_html=True)
+                    st.markdown("</ul></div>", unsafe_allow_html=True)
 
     st.markdown("---")
     st.markdown('<p style="text-align:center; color: #34495e;">Thank you for completing the assessment.</p>', unsafe_allow_html=True)
     st.markdown('</div>', unsafe_allow_html=True)
-    
+
 # --- MAIN APP LOGIC ---
 def main():
-    # Initialize all session state variables at the start
     if 'started' not in st.session_state:
         st.session_state.started = False
-    if 'current_question' not in st.session_state:
-        st.session_state.current_question = 0
     if 'responses' not in st.session_state:
         st.session_state.responses = [None] * len(questions)
     if 'show_results' not in st.session_state:
         st.session_state.show_results = False
-
-    # Initialize keys for the input widgets and the persistent values
     if 'user_name' not in st.session_state:
         st.session_state.user_name = ""
     if 'user_company' not in st.session_state:
         st.session_state.user_company = ""
-    if 'name_input' not in st.session_state:
-        st.session_state.name_input = ""
-    if 'company_input' not in st.session_state:
-        st.session_state.company_input = ""
 
-    # Page routing logic
     if not st.session_state.started:
         display_welcome()
     elif not st.session_state.show_results:
-        display_single_question()
+        display_all_questions()
     else:
         display_results()
 
