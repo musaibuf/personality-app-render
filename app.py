@@ -1,361 +1,53 @@
 import streamlit as st
 import plotly.graph_objects as go
 from datetime import datetime
-import pandas as pd
 import time
 import gspread
+import json
+import os
+from PIL import Image
+import threading # <-- ADDED: To run Google Sheet update in the background
 
 # --- PAGE CONFIGURATION ---
+try:
+    logo = Image.open("logo.png")
+except FileNotFoundError:
+    logo = "🧠"
+
 st.set_page_config(
-    page_title="Personality Style Assessment",
-    page_icon="🧠",
+    page_title="Carnelian - Personality Style Assessment",
+    page_icon=logo,
     layout="wide",
     initial_sidebar_state="collapsed"
 )
 
-# --- CUSTOM CSS FOR ENHANCED & RESPONSIVE UI + HIDE BRANDING ---
+# --- CUSTOM CSS ---
 st.markdown("""
 <style>
-    /* --- HIDE STREAMLIT BRANDING --- */
-    /* Hide "Made with Streamlit" footer */
-    .stApp > footer {visibility: hidden;}
-    .stApp > footer:after {
-        content:''; 
-        visibility: visible;
-        display: block;
-        position: relative;
-        background-color: var(--background-color);
-        padding: 5px;
-        top: 2px;
-    }
-    
-    /* Hide GitHub link and fork button */
-    .stApp > header {visibility: hidden;}
-    .stApp > header:after {
-        content:''; 
-        visibility: visible;
-        display: block;
-        position: relative;
-        background-color: var(--background-color);
-        padding: 5px;
-        top: 2px;
-    }
-    
-    /* Hide deploy button */
-    .stDeployButton {visibility: hidden;}
-    
-    /* Hide hamburger menu */
-    .stApp > header .stButton {visibility: hidden;}
-    
-    /* Hide GitHub corner ribbon */
-    .github-corner {display: none !important;}
-    
-    /* Hide any GitHub related elements */
-    [data-testid="stToolbar"] {visibility: hidden;}
-    
-    /* Alternative method to hide footer */
-    footer {visibility: hidden !important;}
-    footer:after {
-        content:''; 
-        visibility: visible;
-        display: block;
-        position: relative;
-        background-color: var(--background-color);
-        padding: 5px;
-        top: 2px;
-    }
-    
-    /* Hide the main menu (hamburger) */
     #MainMenu {visibility: hidden;}
-    
-    /* Hide header */
+    footer {visibility: hidden;}
     header {visibility: hidden;}
-    header:after {
-        content:''; 
-        visibility: visible;
-        display: block;
-        position: relative;
-        background-color: var(--background-color);
-        padding: 5px;
-        top: 2px;
-    }
 
-    /* --- THIS IS THE DEFINITIVE FIX FOR DARK/LIGHT MODE & MOBILE VISIBILITY --- */
-
-    /* 1. Define Theme-Aware Variables */
-    :root {
-        --primary-color: #1f77b4;
-        --background-color: #FFFFFF;
-        --secondary-background-color: #f8f9fa;
-        --text-color: #2c3e50;
-        --secondary-text-color: #34495e;
-        --border-color: #e9ecef;
-        --heading-color: #1a1a1a;
-        --strong-text-color: #2c3e50;
-    }
-
-    [data-theme="dark"] {
-        --primary-color: #58a6ff;
-        --background-color: #0E1117;
-        --secondary-background-color: #262730;
-        --text-color: #FAFAFA;
-        --secondary-text-color: #d1d1d1;
-        --border-color: #303339;
-        --heading-color: #FFFFFF;
-        --strong-text-color: #FAFAFA;
-    }
-
-    /* 2. Apply Variables to General Elements */
-    .stApp {
-        background-color: var(--background-color);
-        color: var(--text-color);
-    }
-
-    /* Fix for all headings to be visible in both themes */
-    h1, h2, h3, h4, h5, h6 {
-        color: var(--heading-color) !important;
-        font-weight: 700 !important;
-    }
-
-    /* Specific heading fixes */
-    .main-header {
-        color: var(--primary-color) !important;
-        font-size: 2.2rem !important;
-        text-align: center;
-        margin-bottom: 1rem;
-        font-weight: 700 !important;
-    }
-
-    .score-highlight {
-        color: var(--primary-color) !important;
-        font-size: 1.5rem !important;
-        font-weight: bold !important;
-        text-align: center;
-        margin-bottom: 1rem;
-    }
-
-    .question-title {
-        color: var(--heading-color) !important;
-        font-weight: bold !important;
-        margin-bottom: 2.5rem;
-        font-size: 1.5rem;
-        text-align: left;
-        line-height: 1.4;
-    }
-
-    .question-number {
-        color: var(--secondary-text-color) !important;
-        font-size: 1.3rem;
-        font-weight: 600;
-        text-align: left;
-        margin-bottom: 1rem;
-    }
-
-    /* Fix for tab headers and expander headers */
-    .stTabs [data-baseweb="tab-list"] button {
-        color: var(--heading-color) !important;
-        font-weight: 600 !important;
-    }
-
-    .stTabs [data-baseweb="tab-list"] button[aria-selected="true"] {
-        color: var(--primary-color) !important;
-    }
-
-    .stExpanderHeader {
-        color: var(--heading-color) !important;
-        font-weight: 600 !important;
-    }
-
-    /* Strong text and bold elements */
-    strong, b {
-        color: var(--strong-text-color) !important;
-        font-weight: 700 !important;
-    }
-
-    /* Paragraph text */
-    p {
-        color: var(--text-color) !important;
-    }
-
-    /* Results container specific headings */
-    .results-container h2,
-    .results-container h3,
-    .results-container h4,
-    .results-container h5 {
-        color: var(--heading-color) !important;
-        font-weight: 700 !important;
-    }
-
-    /* Welcome container headings */
-    .welcome-container h1,
-    .welcome-container h2 {
-        color: var(--primary-color) !important;
-        font-weight: 700 !important;
-    }
-
-    .results-container, .welcome-container {
-        background-color: var(--secondary-background-color);
-        border: 1px solid var(--border-color);
-        color: var(--text-color);
-    }
-
-    .nav-buttons {
-        border-top: 1px solid var(--border-color);
-    }
-
-    /* 3. Robust Styling for Radio Button Cards */
-    .stRadio > div {
-        gap: 0.75rem;
-    }
-
-    .stRadio label {
-        display: flex;
-        align-items: center;
-        padding: 0.8rem;
-        border-radius: 8px;
-        border: 2px solid var(--border-color);
-        background-color: var(--background-color);
-        box-shadow: 0 2px 4px rgba(0,0,0,0.04);
-        transition: all 0.2s ease-in-out;
-        cursor: pointer;
-    }
-
-    .stRadio label:hover {
-        border-color: var(--primary-color);
-        background-color: var(--secondary-background-color);
-    }
-
-    /* The actual radio circle input */
-    .stRadio input[type="radio"] {
-        flex-shrink: 0;
-    }
-
-    /* The div containing the text next to the radio button */
-    .stRadio label > div {
-        flex-grow: 1;
-        margin-left: 0.75rem;
-        color: var(--text-color) !important;
-        min-width: 0;
-    }
-
-    /* General Layout Styles */
-    @keyframes fadeIn {
-        from { opacity: 0; transform: translateY(20px); }
-        to { opacity: 1; transform: translateY(0); }
-    }
-    
-    .question-container {
-        margin: 2rem auto;
-        max-width: 800px;
-        animation: fadeIn 0.5s ease-in-out;
-        display: flex;
-        flex-direction: column;
-    }
-    
-    .results-container, .welcome-container {
-        padding: 2rem;
-        margin: 2rem auto;
-        border-radius: 15px;
-        max-width: 800px;
-        animation: fadeIn 0.5s ease-in-out;
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-    }
-    
-    .stButton > button {
-        width: 100%;
-        padding: 1rem;
-        border-radius: 10px;
-        font-weight: 600;
-        transition: all 0.3s ease;
-        border: 2px solid transparent;
-        margin-bottom: 0.5rem;
-    }
-    
-    .stButton > button:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-    }
-    
-    .stButton button[kind="primary"] {
-        background-color: var(--primary-color);
-        border-color: var(--primary-color);
-        color: white;
-    }
-    
-    .stButton button[kind="secondary"] {
-        border-color: var(--primary-color);
-        color: var(--primary-color);
-        background-color: transparent;
-    }
-    
-    .keyword-banner {
-        background-color: rgba(31, 119, 180, 0.1);
-        padding: 0.75rem 1rem;
-        border-radius: 8px;
-        margin-bottom: 1.5rem;
-        text-align: center;
-        font-style: italic;
-        border: 1px solid rgba(31, 119, 180, 0.2);
-        color: var(--text-color) !important;
-    }
-    
-    .keyword-banner strong {
-        color: var(--strong-text-color) !important;
-    }
-    
-    .nav-buttons {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-top: 3rem;
-        padding-top: 1.5rem;
-    }
-
-    /* List items styling */
-    li {
-        color: var(--text-color) !important;
-        margin-bottom: 0.5rem;
-    }
-
-    /* Responsive Design for Mobile */
+    .stApp { background-color: #FFFFFF; color: #2c3e50; }
+    .welcome-container, .results-container { padding: 2rem; margin: 2rem auto; border-radius: 15px; background-color: #f8f9fa; border: 1px solid #e9ecef; max-width: 800px; }
+    .question-container { margin: 2rem auto; max-width: 800px; }
+    .main-header { font-size: 2.2rem !important; text-align: center; margin-bottom: 1rem; color: #1f77b4; font-weight: 700; }
+    .question-number { font-size: 1.3rem; font-weight: 600; color: #34495e; text-align: left; margin-bottom: 1rem; }
+    .question-title { font-weight: bold; margin-bottom: 2.5rem; color: #2c3e50; font-size: 1.5rem; text-align: left; line-height: 1.4; }
+    .score-highlight { font-size: 1.5rem; font-weight: bold; color: #1f77b4; text-align: center; margin-bottom: 1rem; }
+    .stRadio > div { gap: 0.75rem; }
+    .stRadio label { display: flex; align-items: center; padding: 0.8rem; border-radius: 8px; border: 2px solid #e9ecef; background-color: #FFFFFF; transition: all 0.2s ease-in-out; cursor: pointer; }
+    .stRadio label:hover { border-color: #1f77b4; }
+    .stRadio label > div { flex-grow: 1; margin-left: 0.75rem; color: #2c3e50 !important; min-width: 0; }
+    .nav-buttons { display: flex; justify-content: space-between; align-items: center; margin-top: 3rem; padding-top: 1.5rem; border-top: 1px solid #e9ecef; }
     @media (max-width: 768px) {
-        .main-header {
-            font-size: 1.8rem !important;
-        }
-        
-        .question-container, .results-container, .welcome-container {
-            margin: 1rem auto;
-            padding: 1.5rem;
-        }
-        
-        .question-title {
-            font-size: 1.2rem;
-            margin-bottom: 2rem;
-        }
-        
-        .question-number {
-            font-size: 1.1rem;
-        }
-        
-        .nav-buttons {
-            margin-top: 2rem;
-        }
-        
-        .score-highlight {
-            font-size: 1.3rem !important;
-        }
-    }
-
-    /* Dark mode specific fixes */
-    [data-theme="dark"] .keyword-banner {
-        background-color: rgba(88, 166, 255, 0.1);
-        border: 1px solid rgba(88, 166, 255, 0.2);
+        .main-header { font-size: 1.8rem !important; }
+        .welcome-container, .results-container { padding: 1.5rem; }
+        .question-title { font-size: 1.2rem; }
+        .question-number { font-size: 1.1rem; }
     }
 </style>
 """, unsafe_allow_html=True)
-
 
 
 # --- DATA (Questions, Scoring, Descriptions) ---
@@ -560,16 +252,8 @@ style_descriptions = {
 @st.cache_data
 def clean_question_choices(question_list):
     """Removes the bracketed text from question choices in-place."""
-    # This function now runs only once thanks to caching
-    for question in question_list:
-        cleaned_choices = []
-        for choice in question['choices']:
-            open_paren_index = choice.find(' (')
-            if open_paren_index != -1:
-                cleaned_choices.append(choice[:open_paren_index].strip())
-            else:
-                cleaned_choices.append(choice)
-        question['choices'] = cleaned_choices
+    for q in question_list:
+        q['choices'] = [c.split(' (')[0] for c in q['choices']]
     return question_list
 
 questions = clean_question_choices(questions)
@@ -594,14 +278,14 @@ def create_results_donut_chart(scores):
         texttemplate="%{label}<br>%{percent:.1%}",
         hoverinfo="label+percent+value",
         textfont_size=14,
-        pull=[0.05 if scores[s] == max(scores.values()) else 0 for s in scores.keys()]
+        pull=[0.05 if scores and scores[s] == max(scores.values()) else 0 for s in scores.keys()]
     )])
     fig.update_layout(
-        title={'text': 'Your Personality Style Profile', 'y':0.95, 'x':0.5, 'xanchor': 'center', 'yanchor': 'top', 'font': {'size': 24, 'color': 'var(--primary-color)'}},
-        font=dict(size=14, color='var(--text-color)'), 
-        paper_bgcolor='rgba(0,0,0,0)', 
+        title={'text': 'Your Personality Style Profile', 'y':0.95, 'x':0.5, 'xanchor': 'center', 'yanchor': 'top', 'font': {'size': 24, 'color': '#1f77b4'}},
+        font=dict(size=14, color='#2c3e50'),
+        paper_bgcolor='rgba(0,0,0,0)',
         showlegend=False,
-        height=450, 
+        height=450,
         margin=dict(l=20, r=20, t=80, b=20)
     )
     return fig
@@ -609,55 +293,96 @@ def create_results_donut_chart(scores):
 def update_google_sheet(data):
     """Connects to Google Sheets and appends a new row of data."""
     try:
-        gc = gspread.service_account_from_dict(st.secrets["gcp_service_account"])
+        creds_dict = st.secrets["gcp_service_account"]
+        gc = gspread.service_account_from_dict(creds_dict)
         spreadsheet = gc.open("Personality Assessment Results")
         worksheet = spreadsheet.worksheet("Sheet1")
-        
+
         row_to_insert = [
             data.get("timestamp"),
+            data.get("name"),
+            data.get("company"),
             data.get("dominant_style"),
             data.get("scores", {}).get("Driver"),
             data.get("scores", {}).get("Analytical"),
             data.get("scores", {}).get("Amiable"),
             data.get("scores", {}).get("Expressive"),
         ] + data.get("responses", [None]*18)
-        
+
         worksheet.append_row(row_to_insert)
+        print("Successfully saved data to Google Sheet.") # For debugging
     except Exception as e:
+        # Log the error to the console for debugging, but don't interrupt the user
         print(f"Error updating Google Sheet: {e}")
+
+def update_input():
+    """Callback function to save text input to session state."""
+    st.session_state.user_name = st.session_state.name_input
+    st.session_state.user_company = st.session_state.company_input
 
 # --- UI DISPLAY FUNCTIONS ---
 def display_welcome():
     st.markdown('<div class="welcome-container">', unsafe_allow_html=True)
+
+    logo_col1, logo_col2, logo_col3 = st.columns([2.5, 0.5, 2.5])
+    with logo_col2:
+        try:
+            st.image("logo.png", width=120)
+        except FileNotFoundError:
+            pass
+
     st.markdown('<h1 class="main-header">Welcome to the Personality Style Assessment</h1>', unsafe_allow_html=True)
-    st.markdown("""
-    <p style="text-align: center; font-size: 1.2rem;">
-        Discover your dominant behavioral style and learn how to effectively interact with others.
-    </p>
-    <p style="text-align: center; color: var(--secondary-text-color);">
-        This assessment consists of 18 questions. For each question, simply select the option that best describes you. 
-        The next question will appear automatically.
-    </p>
-    """, unsafe_allow_html=True)
-    st.markdown("---")
-    _, col2, _ = st.columns([1, 1, 1])
-    if col2.button("Start Assessment", type="primary", use_container_width=True):
-        st.session_state.started = True
-        st.session_state.current_question = 0
-        st.rerun()
+
+    with st.container():
+        _ , input_col, _ = st.columns([1, 2, 1])
+        with input_col:
+            st.text_input(
+                "Please enter your name:",
+                key="name_input",
+                on_change=update_input
+            )
+            st.text_input(
+                "Please enter your company name:",
+                key="company_input",
+                on_change=update_input
+            )
+
+        st.markdown("""
+        <p style="text-align: center; font-size: 1.2rem; margin-top: 1.5rem;">
+            Discover your dominant behavioral style and learn how to effectively interact with others.
+        </p>
+        <p style="text-align: center; color: #34495e;">
+            This assessment consists of 18 questions. For each question, simply select the option that best describes you.
+            The next question will appear automatically.
+        </p>
+        """, unsafe_allow_html=True)
+
+        st.markdown("---")
+
+        _ , btn_col, _ = st.columns([1.5, 1, 1.5])
+        if btn_col.button(
+            "Start Assessment",
+            type="primary",
+            use_container_width=True,
+            disabled=(not st.session_state.get("user_name") or not st.session_state.get("user_company"))
+        ):
+            st.session_state.started = True
+            st.session_state.current_question = 0
+            st.rerun()
+
     st.markdown('</div>', unsafe_allow_html=True)
 
 def display_single_question():
     current_q = st.session_state.current_question
     total_questions = len(questions)
-    
+
     st.markdown('<div class="question-container">', unsafe_allow_html=True)
-    
+
     st.markdown(f'<div class="question-number">Question {current_q + 1} of {total_questions}</div>', unsafe_allow_html=True)
     st.markdown(f'<div class="question-title">{questions[current_q]["text"]}</div>', unsafe_allow_html=True)
-    
+
     radio_key = f"q_{current_q}_radio"
-    
+
     selected = st.radio(
         "Select your answer:",
         options=range(len(questions[current_q]['choices'])),
@@ -666,7 +391,7 @@ def display_single_question():
         index=st.session_state.responses[current_q],
         label_visibility="collapsed"
     )
-    
+
     if selected is not None and selected != st.session_state.responses[current_q]:
         st.session_state.responses[current_q] = selected
         if current_q < total_questions - 1:
@@ -676,25 +401,25 @@ def display_single_question():
         else:
             st.session_state.show_results = True
             st.rerun()
-    
+
     st.markdown('<div class="nav-buttons">', unsafe_allow_html=True)
     col1, col2, col3 = st.columns([1, 2, 1])
-    
+
     with col1:
         if current_q > 0:
             if st.button("Back", use_container_width=True):
                 st.session_state.current_question -= 1
                 st.rerun()
-    
+
     with col2:
         st.progress((current_q) / total_questions)
-    
+
     with col3:
         if current_q < total_questions - 1 and st.session_state.responses[current_q] is not None:
             if st.button("Next", use_container_width=True):
                 st.session_state.current_question += 1
                 st.rerun()
-    
+
     st.markdown('</div>', unsafe_allow_html=True)
     st.markdown('</div>', unsafe_allow_html=True)
 
@@ -704,20 +429,45 @@ def display_results():
     max_score = max(scores.values()) if scores else 0
     dominant_styles = [s for s, score in scores.items() if score == max_score]
 
-    if 'data_saved' not in st.session_state or not st.session_state.data_saved:
-        letter_responses = [chr(65 + r) if r is not None else None for r in st.session_state.responses]
+    # This block runs the slow Google Sheet update in a background thread.
+    if 'data_saved' not in st.session_state:
+        st.session_state.data_saved = False
+
+    if not st.session_state.data_saved:
+        # --- MODIFICATION START ---
+        # Calculate percentages for saving to the sheet, as requested.
         total_questions = len(questions)
-        percentage_scores = {style: f"{(score / total_questions) * 100:.1f}%" for style, score in scores.items()}
+        if total_questions > 0:
+            # Format scores as percentage strings (e.g., "50.0%")
+            percentage_scores_for_sheet = {style: f"{(score / total_questions) * 100:.1f}%" for style, score in scores.items()}
+        else:
+            # Handle case with no questions to avoid division by zero
+            percentage_scores_for_sheet = {style: "0.0%" for style in scores.keys()}
+
+        # Prepare the data to be saved
+        letter_responses = [chr(65 + r) if r is not None else None for r in st.session_state.responses]
         data_to_save = {
             "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "name": st.session_state.get("user_name", "N/A"),
+            "company": st.session_state.get("user_company", "N/A"),
             "dominant_style": " & ".join(dominant_styles),
-            "scores": percentage_scores,
+            "scores": percentage_scores_for_sheet,  # <-- Use the calculated percentages here
             "responses": letter_responses
         }
-        update_google_sheet(data_to_save)
+        # --- MODIFICATION END ---
+
+        # Run the Google Sheet update in a separate thread to avoid blocking the UI
+        try:
+            save_thread = threading.Thread(target=update_google_sheet, args=(data_to_save,))
+            save_thread.start()
+        except Exception as e:
+            print(f"Failed to start background save thread: {e}")
+
+        # Immediately mark data as "saved" to prevent this block from running again.
         st.session_state.data_saved = True
 
-    st.markdown('<h2 style="text-align: center; color: var(--primary-color);">Your Assessment Results</h2>', unsafe_allow_html=True)
+    # The rest of the page (like the chart) still uses the raw `scores` for correct rendering.
+    st.markdown('<h2 style="text-align: center; color: #1f77b4;">Your Assessment Results</h2>', unsafe_allow_html=True)
     st.plotly_chart(create_results_donut_chart(scores), use_container_width=True)
     st.markdown("---")
 
@@ -725,10 +475,10 @@ def display_results():
         style = dominant_styles[0]
         info = style_descriptions[style]
         st.markdown(f'<div class="score-highlight">Your Dominant Style is {info["title"]}</div>', unsafe_allow_html=True)
-        
+
         with st.expander("Click here for a detailed breakdown of your style", expanded=True):
             st.markdown(f'<div class="keyword-banner"><strong>Keywords:</strong> {", ".join(info["keywords"])}</div>', unsafe_allow_html=True)
-            
+
             tab1, tab2 = st.tabs(["Key Behaviors", "Tips for Interaction"])
             with tab1:
                 for behavior in info['behaviors']:
@@ -739,13 +489,13 @@ def display_results():
     else:
         st.markdown('<div class="score-highlight">You have a blend of styles!</div>', unsafe_allow_html=True)
         st.markdown(f"<p style='text-align:center;'>Your dominant styles are: {' & '.join(dominant_styles)}</p>", unsafe_allow_html=True)
-        
+
         tabs = st.tabs([style_descriptions[s]['title'] for s in dominant_styles])
         for i, style in enumerate(dominant_styles):
             with tabs[i]:
                 info = style_descriptions[style]
                 st.markdown(f'<div class="keyword-banner"><strong>Keywords:</strong> {", ".join(info["keywords"])}</div>', unsafe_allow_html=True)
-                
+
                 col1, col2 = st.columns(2)
                 with col1:
                     st.markdown("##### Key Behaviors")
@@ -757,11 +507,12 @@ def display_results():
                         st.markdown(f"• {tip}")
 
     st.markdown("---")
-    st.markdown('<p style="text-align:center; color: var(--secondary-text-color);">Thank you for completing the assessment.</p>', unsafe_allow_html=True)
+    st.markdown('<p style="text-align:center; color: #34495e;">Thank you for completing the assessment.</p>', unsafe_allow_html=True)
     st.markdown('</div>', unsafe_allow_html=True)
-
+    
 # --- MAIN APP LOGIC ---
 def main():
+    # Initialize all session state variables at the start
     if 'started' not in st.session_state:
         st.session_state.started = False
     if 'current_question' not in st.session_state:
@@ -771,6 +522,17 @@ def main():
     if 'show_results' not in st.session_state:
         st.session_state.show_results = False
 
+    # Initialize keys for the input widgets and the persistent values
+    if 'user_name' not in st.session_state:
+        st.session_state.user_name = ""
+    if 'user_company' not in st.session_state:
+        st.session_state.user_company = ""
+    if 'name_input' not in st.session_state:
+        st.session_state.name_input = ""
+    if 'company_input' not in st.session_state:
+        st.session_state.company_input = ""
+
+    # Page routing logic
     if not st.session_state.started:
         display_welcome()
     elif not st.session_state.show_results:
