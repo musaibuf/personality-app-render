@@ -23,11 +23,20 @@ st.set_page_config(
 # --- CUSTOM CSS ---
 st.markdown("""
 <style>
-    #MainMenu, footer, header {visibility: hidden;}
-    body { background-color: #FFFFFF !important; color: #2c3e50 !important; }
-    .welcome-container, .results-container, .question-container { padding: 2rem; margin: 2rem auto; border-radius: 15px; background-color: #f8f9fa; border: 1px solid #e9ecef; max-width: 800px; }
-    
-    /* --- THIS IS THE FIX for Input Fields --- */
+    /* --- DEFINITIVE FIX FOR FORCED LIGHT THEME & MOBILE --- */
+
+    /* 1. Hide Streamlit Branding */
+    #MainMenu, footer, header {
+        visibility: hidden;
+    }
+
+    /* 2. Force Light Theme on Core Elements */
+    body, .stApp, .main, .block-container, .st-emotion-cache-1y4p8pa {
+        background-color: #FFFFFF !important;
+        color: #2c3e50 !important;
+    }
+
+    /* 3. Force Light Theme on Text Input Fields (Labels and Boxes) */
     .stTextInput label {
         color: #34495e !important; /* Dark grey for the label text */
     }
@@ -38,6 +47,17 @@ st.markdown("""
     }
     /* --- END OF FIX --- */
 
+    /* Main containers */
+    .welcome-container, .results-container, .question-container {
+        padding: 2rem;
+        margin: 2rem auto;
+        border-radius: 15px;
+        background-color: #f8f9fa !important;
+        border: 1px solid #e9ecef !important;
+        max-width: 800px;
+    }
+
+    /* Header layout */
     .welcome-header {
         display: flex;
         align-items: center;
@@ -57,14 +77,18 @@ st.markdown("""
         color: #B31b1b;
     }
 
+    /* General Text and Headers */
     .main-header { font-size: 2.2rem !important; text-align: center; margin-bottom: 1rem; color: #1f77b4; font-weight: 700; }
     .question-number { font-size: 1.1rem; font-weight: 600; color: #1f77b4; padding-bottom: 0.5rem; border-bottom: 2px solid #e9ecef; margin-bottom: 1rem; }
     .question-title { font-weight: bold; margin-bottom: 1rem; color: #2c3e50; font-size: 1.1rem; }
     .score-highlight { font-size: 1.5rem; font-weight: bold; color: #1f77b4; text-align: center; margin-bottom: 1rem; }
+    
+    /* Radio Button Styling */
     .stRadio > div { gap: 0.5rem; }
     .stRadio label { display: flex; align-items: center; padding: 0.5rem 0.75rem; border-radius: 8px; border: 1px solid #e9ecef; background-color: #FFFFFF; transition: all 0.2s ease-in-out; }
     .stRadio label:hover { border-color: #1f77b4; background-color: #f0f8ff; }
     .stRadio label > div { color: #2c3e50 !important; }
+    
     .keyword-banner { text-align: center; background-color: rgba(31, 119, 180, 0.1); padding: 0.75rem 1rem; border-radius: 8px; margin-bottom: 1.5rem; font-style: italic; }
     
     .results-column h5 { color: #1f77b4; font-weight: 600; border-bottom: 2px solid #1f77b4; padding-bottom: 0.5rem; margin-bottom: 1rem; }
@@ -468,11 +492,17 @@ def display_all_questions():
 
 def display_results():
     st.markdown('<div class="results-container">', unsafe_allow_html=True)
+    
+    # --- THIS IS THE FIX for the Google Sheets bug ---
+    # Calculate scores and prepare data *before* checking the 'data_saved' flag
     scores = calculate_scores(st.session_state.responses)
     max_score = max(scores.values()) if scores else 0
     dominant_styles = [s for s, score in scores.items() if score == max_score]
+    
+    if 'data_saved' not in st.session_state:
+        st.session_state.data_saved = False
 
-    if 'data_saved' not in st.session_state or not st.session_state.data_saved:
+    if not st.session_state.data_saved:
         letter_responses = [chr(65 + r) if r is not None else None for r in st.session_state.responses]
         total_questions = len(questions)
         percentage_scores = {style: f"{(score / total_questions) * 100:.1f}%" for style, score in scores.items()}
@@ -486,6 +516,7 @@ def display_results():
         }
         update_google_sheet(data_to_save)
         st.session_state.data_saved = True
+    # --- END OF FIX ---
 
     st.markdown('<h2 style="text-align: center; color: #1f77b4;">Your Assessment Results</h2>', unsafe_allow_html=True)
     st.plotly_chart(create_results_donut_chart(scores), use_container_width=True)
