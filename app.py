@@ -22,21 +22,91 @@ st.set_page_config(
 # --- CUSTOM CSS ---
 st.markdown("""
 <style>
-    #MainMenu, footer, header {visibility: hidden;}
-    body { background-color: #FFFFFF !important; color: #2c3e50 !important; }
-    .welcome-container, .results-container, .question-container { padding: 2rem; margin: 2rem auto; border-radius: 15px; background-color: #f8f9fa; border: 1px solid #e9ecef; max-width: 800px; }
-    .main-header { font-size: 2.2rem !important; text-align: center; margin-bottom: 1rem; color: #1f77b4; font-weight: 700; }
-    .question-number { font-size: 1.1rem; font-weight: 600; color: #1f77b4; padding-bottom: 0.5rem; border-bottom: 2px solid #e9ecef; margin-bottom: 1rem; }
-    .question-title { font-weight: bold; margin-bottom: 1rem; color: #2c3e50; font-size: 1.1rem; }
-    .score-highlight { font-size: 1.5rem; font-weight: bold; color: #1f77b4; text-align: center; margin-bottom: 1rem; }
-    .stRadio > div { gap: 0.5rem; }
-    .stRadio label { display: flex; align-items: center; padding: 0.5rem 0.75rem; border-radius: 8px; border: 1px solid #e9ecef; background-color: #FFFFFF; transition: all 0.2s ease-in-out; }
-    .stRadio label:hover { border-color: #1f77b4; background-color: #f0f8ff; }
-    .stRadio label > div { color: #2c3e50 !important; }
-    .keyword-banner { text-align: center; background-color: rgba(31, 119, 180, 0.1); padding: 0.75rem 1rem; border-radius: 8px; margin-bottom: 1.5rem; font-style: italic; }
-    
+    /* --- DEFINITIVE FIX FOR FORCED LIGHT MODE & MOBILE --- */
+
+    /* 1. Force Light Theme on All Elements */
+    body, .stApp, .main, .block-container, .st-emotion-cache-1y4p8pa {
+        background-color: #FFFFFF !important;
+        color: #2c3e50 !important;
+    }
+
+    /* 2. Hide Streamlit Branding */
+    #MainMenu, footer, header {
+        visibility: hidden;
+    }
+
+    /* 3. Main Containers */
+    .welcome-container, .results-container, .question-container {
+        padding: 2rem;
+        margin: 2rem auto;
+        border-radius: 15px;
+        background-color: #f8f9fa !important;
+        border: 1px solid #e9ecef !important;
+        max-width: 800px;
+    }
+
+    /* 4. Text and Headers */
+    h1, h2, h3, h4, h5, p, li, .st-emotion-cache-16idsys p {
+        color: #2c3e50 !important;
+    }
+    .main-header {
+        font-size: 2.2rem !important;
+        text-align: center;
+        margin-bottom: 1rem;
+        color: #1f77b4 !important;
+        font-weight: 700;
+    }
+    .question-number {
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: #1f77b4 !important;
+        padding-bottom: 0.5rem;
+        border-bottom: 2px solid #e9ecef;
+        margin-bottom: 1rem;
+    }
+    .question-title {
+        font-weight: bold;
+        margin-bottom: 1rem;
+        font-size: 1.1rem;
+    }
+    .score-highlight {
+        font-size: 1.5rem;
+        font-weight: bold;
+        color: #1f77b4 !important;
+        text-align: center;
+        margin-bottom: 1rem;
+    }
+
+    /* 5. Interactive Elements */
+    .stRadio > div {
+        gap: 0.5rem;
+    }
+    .stRadio label {
+        display: flex;
+        align-items: center;
+        padding: 0.5rem 0.75rem;
+        border-radius: 8px;
+        border: 1px solid #e9ecef;
+        background-color: #FFFFFF !important;
+        transition: all 0.2s ease-in-out;
+    }
+    .stRadio label:hover {
+        border-color: #1f77b4;
+        background-color: #f0f8ff !important;
+    }
+    .stRadio label > div {
+        color: #2c3e50 !important;
+    }
+    .keyword-banner {
+        text-align: center;
+        background-color: rgba(31, 119, 180, 0.1) !important;
+        padding: 0.75rem 1rem;
+        border-radius: 8px;
+        margin-bottom: 1.5rem;
+        font-style: italic;
+    }
     .results-column h5 {
-        color: #1f77b4;
+        color: #1f77b4 !important;
         font-weight: 600;
         border-bottom: 2px solid #1f77b4;
         padding-bottom: 0.5rem;
@@ -57,18 +127,21 @@ st.markdown("""
         left: 0;
         top: 0;
     }
-    .results-column .behaviors li::before {
-        content: '✅';
-    }
-    .results-column .tips li::before {
-        content: '💡';
-    }
+    .results-column .behaviors li::before { content: '✅'; }
+    .results-column .tips li::before { content: '💡'; }
 
+    /* 6. Mobile-Specific Fixes */
     @media (max-width: 768px) {
         .main-header { font-size: 1.8rem !important; }
         .welcome-container, .results-container, .question-container { padding: 1.5rem; }
         .question-title { font-size: 1rem; }
         .results-column { margin-bottom: 1.5rem; }
+        
+        /* Center the logo on mobile */
+        .logo-container {
+            display: flex;
+            justify-content: center;
+        }
     }
 </style>
 """, unsafe_allow_html=True)
@@ -285,22 +358,17 @@ questions = clean_question_choices(questions)
 
 def calculate_scores(responses):
     scores = {'Driver': 0, 'Analytical': 0, 'Amiable': 0, 'Expressive': 0}
-    # --- THIS IS THE FIX ---
-    # Map the index directly to the correct letter
     choice_map = ['a', 'b', 'c', 'd']
     
     for i, response_index in enumerate(responses):
         if response_index is not None:
             question_num = i + 1
-            # Use the index to get the correct letter ('a', 'b', 'c', or 'd')
             choice_letter = choice_map[response_index]
             
-            # Look up the style using the correct letter from the scoring map
             if question_num in scoring_map and choice_letter in scoring_map[question_num]:
                 style = scoring_map[question_num][choice_letter]
                 scores[style] += 1
     return scores
-    # --- END OF FIX ---
 
 def create_results_donut_chart(scores):
     colors = {'Driver': '#FF6B6B', 'Analytical': '#4ECDC4', 'Amiable': '#45B7D1', 'Expressive': '#FFA07A'}
@@ -351,17 +419,18 @@ def update_google_sheet(data):
 def display_welcome():
     st.markdown('<div class="welcome-container">', unsafe_allow_html=True)
     
-    col1, col2, col3 = st.columns([2,0.5, 2])
-    with col2:
+    # --- THIS IS THE FIX for centering the logo on all devices ---
+    # We wrap the columns in a container and apply a specific class for mobile centering
+    with st.container():
+        st.markdown('<div class="logo-container">', unsafe_allow_html=True)
         try:
             st.image("logo.png", width=150) 
         except FileNotFoundError:
             pass
+        st.markdown('</div>', unsafe_allow_html=True)
     
     st.markdown('<h1 class="main-header">Welcome to the Personality Style Assessment</h1>', unsafe_allow_html=True)
     
-    # --- THIS IS THE FIX for saving name/company ---
-    # Use a callback to instantly save input to session_state
     def update_inputs():
         st.session_state.user_name = st.session_state.name_input
         st.session_state.user_company = st.session_state.company_input
@@ -394,8 +463,6 @@ def display_welcome():
         use_container_width=True, 
         disabled=(not st.session_state.user_name or not st.session_state.user_company)
     ):
-        # --- THIS IS THE FIX for resetting the form ---
-        # Reset previous responses and results flags for a clean start
         st.session_state.responses = [None] * len(questions)
         st.session_state.show_results = False
         if 'data_saved' in st.session_state:
@@ -416,7 +483,6 @@ def display_all_questions():
             st.markdown(f'<div class="question-number">Question {i + 1}</div>', unsafe_allow_html=True)
             st.markdown(f'<p class="question-title">{q["text"]}</p>', unsafe_allow_html=True)
             
-            # The default for a new session is None, which shows no selection.
             st.radio(
                 "Select your answer:",
                 options=range(len(q['choices'])),
@@ -433,11 +499,9 @@ def display_all_questions():
         submitted = btn_col.form_submit_button("Submit & View Results", type="primary", use_container_width=True)
         
         if submitted:
-            # When the form is submitted, save all the current widget values to our persistent responses list
             for i in range(len(questions)):
                 st.session_state.responses[i] = st.session_state[f"q_{i}"]
             
-            # Check if all questions have been answered
             if all(r is not None for r in st.session_state.responses):
                 st.session_state.show_results = True
                 st.rerun()
