@@ -374,7 +374,16 @@ def create_results_donut_chart(scores):
 def update_google_sheet(data):
     """Connects to Google Sheets and appends a new row of data."""
     try:
-        creds_dict = st.secrets["gcp_service_account"]
+        # --- THIS IS THE FIX: Check for Render's environment variable first ---
+        if "GCP_SERVICE_ACCOUNT_CREDENTIALS" in os.environ:
+            # Running on Render, load from environment variable
+            creds_json_str = os.environ.get("GCP_SERVICE_ACCOUNT_CREDENTIALS")
+            creds_dict = json.loads(creds_json_str)
+        else:
+            # Running locally, load from Streamlit's secrets file
+            creds_dict = st.secrets["gcp_service_account"]
+        # --- END OF FIX ---
+
         gc = gspread.service_account_from_dict(creds_dict)
         spreadsheet = gc.open("Personality Assessment Results")
         worksheet = spreadsheet.worksheet("Sheet1")
@@ -393,7 +402,7 @@ def update_google_sheet(data):
         worksheet.append_row(row_to_insert)
     except Exception as e:
         print(f"Error updating Google Sheet: {e}")
-
+        
 # --- UI DISPLAY FUNCTIONS ---
 def display_welcome():
     st.markdown('<div class="welcome-container">', unsafe_allow_html=True)
