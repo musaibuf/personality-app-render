@@ -23,39 +23,72 @@ st.set_page_config(
 # --- CUSTOM CSS ---
 st.markdown("""
 <style>
-    #MainMenu, footer, header {visibility: hidden;}
-    body { background-color: #FFFFFF !important; color: #2c3e50 !important; }
-    .welcome-container, .results-container, .question-container { padding: 2rem; margin: 2rem auto; border-radius: 15px; background-color: #f8f9fa; border: 1px solid #e9ecef; max-width: 800px; }
-    
-    /* --- THIS IS THE DEFINITIVE FIX for the Welcome Header --- */
-    .welcome-header {
-        display: flex;
-        align-items: center; /* Vertically align items */
-        justify-content: center; /* Center content within the flex container */
-        gap: 20px; /* Space between logo and text */
-        margin-bottom: 2rem;
+    /* --- DEFINITIVE FIX FOR FORCED LIGHT THEME & MOBILE --- */
+
+    /* 1. Hide Streamlit Branding */
+    #MainMenu, footer, header {
+        visibility: hidden;
     }
-    .welcome-header img {
-        width: 100px; /* Control logo size */
-        height: auto;
-        flex-shrink: 0; /* Prevent logo from shrinking */
+
+    /* 2. Force Light Theme on Core Elements */
+    body, .stApp, .main, .block-container, .st-emotion-cache-1y4p8pa {
+        background-color: #FFFFFF !important;
+        color: #2c3e50 !important;
     }
-    .welcome-header h1 {
-        text-align: left;
-        margin-bottom: 0; /* Remove default margin from h1 */
-        line-height: 1.2;
-        color: #B31b1b; /* Carnelian red color */
+
+    /* 3. Force Light Theme on Text Input Fields (Labels and Boxes) */
+    .stTextInput label {
+        color: #34495e !important; /* Dark grey for the label text */
+    }
+    .stTextInput input {
+        background-color: #FFFFFF !important;
+        color: #2c3e50 !important;
+        border: 1px solid #ced4da !important; /* Standard light grey border */
     }
     /* --- END OF FIX --- */
 
+    /* Main containers */
+    .welcome-container, .results-container, .question-container {
+        padding: 2rem;
+        margin: 2rem auto;
+        border-radius: 15px;
+        background-color: #f8f9fa !important;
+        border: 1px solid #e9ecef !important;
+        max-width: 800px;
+    }
+
+    /* Header layout */
+    .welcome-header {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 20px;
+        margin-bottom: 2rem;
+    }
+    .welcome-header img {
+        width: 100px;
+        height: auto;
+        flex-shrink: 0;
+    }
+    .welcome-header h1 {
+        text-align: left;
+        margin-bottom: 0;
+        line-height: 1.2;
+        color: #B31b1b;
+    }
+
+    /* General Text and Headers */
     .main-header { font-size: 2.2rem !important; text-align: center; margin-bottom: 1rem; color: #1f77b4; font-weight: 700; }
     .question-number { font-size: 1.1rem; font-weight: 600; color: #1f77b4; padding-bottom: 0.5rem; border-bottom: 2px solid #e9ecef; margin-bottom: 1rem; }
     .question-title { font-weight: bold; margin-bottom: 1rem; color: #2c3e50; font-size: 1.1rem; }
     .score-highlight { font-size: 1.5rem; font-weight: bold; color: #1f77b4; text-align: center; margin-bottom: 1rem; }
+    
+    /* Radio Button Styling */
     .stRadio > div { gap: 0.5rem; }
     .stRadio label { display: flex; align-items: center; padding: 0.5rem 0.75rem; border-radius: 8px; border: 1px solid #e9ecef; background-color: #FFFFFF; transition: all 0.2s ease-in-out; }
     .stRadio label:hover { border-color: #1f77b4; background-color: #f0f8ff; }
     .stRadio label > div { color: #2c3e50 !important; }
+    
     .keyword-banner { text-align: center; background-color: rgba(31, 119, 180, 0.1); padding: 0.75rem 1rem; border-radius: 8px; margin-bottom: 1.5rem; font-style: italic; }
     
     .results-column h5 { color: #1f77b4; font-weight: 600; border-bottom: 2px solid #1f77b4; padding-bottom: 0.5rem; margin-bottom: 1rem; }
@@ -71,7 +104,6 @@ st.markdown("""
         .question-title { font-size: 1rem; }
         .results-column { margin-bottom: 1.5rem; }
         
-        /* Stack the logo on top of the text on mobile */
         .welcome-header {
             flex-direction: column;
             gap: 15px;
