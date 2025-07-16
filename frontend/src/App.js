@@ -315,7 +315,8 @@ function App() {
             };
 
             // 2. Send the data to the backend server test
-            await axios.post(`${API_URL}/api/submit`, payload);
+            const cleanApiUrl = API_URL.replace(/\/$/, ''); 
+            await axios.post(`${cleanApiUrl}/api/submit`, payload);
 
             // 3. If successful, calculate results for local display
             const scores = { 'Driver': 0, 'Analytical': 0, 'Amiable': 0, 'Expressive': 0 };
