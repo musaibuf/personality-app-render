@@ -273,7 +273,9 @@ function App() {
     const [error, setError] = useState('');
     const [tabIndex, setTabIndex] = useState(0);
     const [isSubmitting, setIsSubmitting] = useState(false); // For loading state on submit button
-    const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5001';
+    
+    // This line is designed to work BOTH locally and on Render
+    const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5001';
 
 
     // This hook scrolls the page to the top when a new step begins
@@ -311,9 +313,9 @@ function App() {
                 company: userInfo.company,
                 responses: responses
             };
-//DO CHANGE THSISSSSSS!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-            // 2. Send the data to the backend server
-            await axios.post(`${apiUrl}/api/submit`, payload);
+
+            // 2. Send the data to the backend server test
+            await axios.post(`${API_URL}/api/submit`, payload);
 
             // 3. If successful, calculate results for local display
             const scores = { 'Driver': 0, 'Analytical': 0, 'Amiable': 0, 'Expressive': 0 };

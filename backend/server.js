@@ -1,14 +1,14 @@
 const express = require('express');
 const cors = require('cors');
 const { google } = require('googleapis');
-require('dotenv').config();
+require('dotenv').config(); // <-- Re-enabled for Render
 
 const app = express();
-const PORT = process.env.PORT || 5001; // Use a different port than the frontend
+const PORT = process.env.PORT || 5001; // Render will use process.env.PORT
 
 // Middleware
-app.use(cors()); // Allow requests from your React app
-app.use(express.json()); // Allow the server to understand JSON data
+app.use(cors()); // Standard cors is fine
+app.use(express.json());
 
 // The scoring map, same as in your frontend
 const scoringMap = {
@@ -50,15 +50,16 @@ app.post('/api/submit', async (req, res) => {
             name,
             company,
             dominantStyles.join(' & '),
-            percentageScores.Driver,      // Use percentage
-            percentageScores.Analytical, // Use percentage
-            percentageScores.Amiable,    // Use percentage
-            percentageScores.Expressive, // Use percentage
+            percentageScores.Driver,
+            percentageScores.Analytical,
+            percentageScores.Amiable,
+            percentageScores.Expressive,
             ...letterResponses
         ];
 
 
         // --- Authenticate and Append to Sheet ---
+        // Reverted to use process.env for Render's environment variables
         const credentials = JSON.parse(process.env.GCP_SERVICE_ACCOUNT_CREDENTIALS);
         const auth = new google.auth.GoogleAuth({
             credentials,
@@ -67,7 +68,7 @@ app.post('/api/submit', async (req, res) => {
         const sheets = google.sheets({ version: 'v4', auth });
 
         await sheets.spreadsheets.values.append({
-            spreadsheetId: '1_3tGeu3fhqtNrg62Z2YTsjgOin419n--G1Z6B0ujxUM', // <-- IMPORTANT: REPLACE THIS
+            spreadsheetId: '1_3tGeu3fhqtNrg62Z2YTsjgOin419n--G1Z6B0ujxUM',
             range: 'Sheet1!A:A',
             valueInputOption: 'USER_ENTERED',
             resource: {
@@ -84,7 +85,7 @@ app.post('/api/submit', async (req, res) => {
     }
 });
 
-
+// This part is CRITICAL for Render. It was removed for Firebase.
 app.listen(PORT, () => {
     console.log(`Server is up and listening on port ${PORT}`);
 });
