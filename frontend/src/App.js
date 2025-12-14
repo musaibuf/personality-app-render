@@ -353,11 +353,11 @@ function App() {
             <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, mb: 3 }}>
                 <img src="/logo.png" alt="Carnelian Logo" style={{ width: '120px', height: 'auto' }} />
                 <Typography variant="h1">
-                    Personality Style Assessment
+                    Your Style Assessment
                 </Typography>
             </Box>
             <Typography variant="h5" align="center" color="text.secondary" sx={{ mb: 4, fontWeight: 'normal' }}>
-                Unlock insights into your work style. This quick assessment will reveal your dominant behavioral traits and provide tips for better collaboration.
+                Discover your communication style. This quick assessment will highlight your key behaviors and offer tips for smoother collaboration.
             </Typography>
             <Box sx={{ maxWidth: 400, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 2 }}>
                 <TextField
@@ -498,7 +498,7 @@ function App() {
                             </ul>
                         </Grid>
                         <Grid item xs={12} md={6}>
-                            <Typography variant="h5">Tips for Interaction</Typography>
+                            <Typography variant="h5">How Others Should Interact with You</Typography>
                             <ul style={{ paddingLeft: '20px', lineHeight: 1.7 }}>
                                 {info.dealing_tips.map((t, i) => <li key={i}>{t}</li>)}
                             </ul>
