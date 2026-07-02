@@ -311,7 +311,7 @@ function App() {
             };
 
             // 2. Send the data to the backend server
-            await axios.post('http://localhost:5001/api/submit', payload);
+            await axios.post('https://personality-test-backend-iwgm.onrender.com/api/submit', payload);
 
             // 3. If successful, calculate results for local display
             const scores = { 'Driver': 0, 'Analytical': 0, 'Amiable': 0, 'Expressive': 0 };
