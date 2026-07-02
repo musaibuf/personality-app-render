@@ -37,19 +37,25 @@ let theme = createTheme({
             fontWeight: 700,
             color: '#B31b1b',
             textAlign: 'center',
+            fontSize: '2.5rem', // <-- REDUCED BASE SIZE
+            lineHeight: 1.2,
+            wordBreak: 'break-word', // <-- PREVENTS LONG WORDS FROM GOING OFF SCREEN
         },
         h2: {
             fontWeight: 600,
             color: '#B31b1b',
             textAlign: 'center',
             marginBottom: '1.5rem',
+            fontSize: '2rem', // <-- REDUCED BASE SIZE
+            wordBreak: 'break-word', 
         },
         h5: {
-            color: '#F57C00', // Changed to orange to match buttons
+            color: '#F57C00', 
             fontWeight: 600,
             borderBottom: '2px solid #F57C00',
             paddingBottom: '0.5rem',
             marginBottom: '1rem',
+            fontSize: '1.25rem', // <-- Control h5 size on mobile too
         }
     },
 });
